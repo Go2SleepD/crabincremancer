@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#087f94">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Crab Beach">
+  <title>Crab Beach</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body { background: radial-gradient(ellipse at top, #169fab, #063b55); color: #fff8de; font-family: system-ui, sans-serif; }
+    #stage { height: 100%; height: 100dvh; display: grid; place-items: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    #frame { position: relative; overflow: hidden; box-shadow: 0 0 90px #002b4166; background: #087f94; }
+    canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+    #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 28px; text-align: center; background: linear-gradient(#087f94 0%, #42bec4 65%, #e9cc8b 65%); }
+    #loading[hidden] { display: none; }
+    .crab { font-size: 80px; margin-bottom: 18px; }
+    h1 { font-size: clamp(32px, 8vw, 52px); line-height: 1; margin: 0 0 12px; text-shadow: 0 3px #075c77; }
+    .tagline { font-size: 15px; margin: 0 0 35px; }
+    progress { width: min(100%, 260px); height: 18px; accent-color: #ffbd45; }
+    #status { font-size: 14px; min-height: 40px; margin: 12px 0; }
+    #retry { border: 0; border-radius: 14px; background: #ffce62; color: #513923; padding: 13px 24px; font: bold 16px system-ui; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main id="stage">
+    <div id="frame">
+      <canvas id="unity-canvas" width="540" height="1080" tabindex="0" aria-label="Crab Beach game"></canvas>
+      <div id="loading">
+        <div class="crab" aria-hidden="true">🦀</div>
+        <h1>CRAB BEACH</h1>
+        <p class="tagline" id="tagline">Dig up treasures. Watch the waves.</p>
+        <progress id="progress" max="1" value="0" aria-label="Loading"></progress>
+        <p id="status" role="status">Loading the beach… 0%</p>
+        <button id="retry" type="button" hidden>Try again</button>
+      </div>
+    </div>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      const ru = /^(ru|uk|be)/i.test(navigator.language || "");
+      document.documentElement.lang = ru ? "ru" : "en";
+      const stage = document.getElementById("stage");
+      const frame = document.getElementById("frame");
+      const canvas = document.getElementById("unity-canvas");
+      const loading = document.getElementById("loading");
+      const progress = document.getElementById("progress");
+      const status = document.getElementById("status");
+      const retry = document.getElementById("retry");
+      const label = ru ? "Загружаем пляж… " : "Loading the beach… ";
+      if (ru) {
+        document.getElementById("tagline").textContent = "Ищи сокровища. Берегись волн.";
+        retry.textContent = "Попробовать снова";
+      }
+      status.textContent = label + "0%";
+      retry.onclick = () => location.reload();
+      function resize() {
+        const style = getComputedStyle(stage);
+        const availableWidth = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const availableHeight = stage.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+        const width = Math.min(availableWidth, availableHeight / 2);
+        frame.style.width = Math.floor(width) + "px";
+        frame.style.height = Math.floor(width * 2) + "px";
+      }
+      new ResizeObserver(resize).observe(stage);
+      resize();
+      let failed = false;
+      function fail(error) {
+        failed = true;
+        console.error(error);
+        loading.hidden = false;
+        progress.hidden = true;
+        status.textContent = ru ? "Не удалось запустить игру. Обнови страницу или попробуй другой браузер." : "The game could not start. Reload or try another browser.";
+        retry.hidden = false;
+      }
+      canvas.addEventListener("webglcontextlost", () => fail("WebGL context lost"));
+      const config = {
+        dataUrl: "Build/19d649c710fae6b35b70d1ec1f0601d9.data.unityweb",
+        frameworkUrl: "Build/1f203a19b3823864bd961a310541713c.framework.js.unityweb",
+        codeUrl: "Build/94103c25e744e3c72c3afdf4c9509209.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Crab Beach",
+        productVersion: "0.1.0",
+        autoSyncPersistentDataPath: true,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        showBanner: (message, type) => {
+          if (type === "error") fail(message);
+          else console.warn(message);
+        }
+      };
+      const script = document.createElement("script");
+      script.src = "Build/dcf39b58c623bd13f9f5a2fd09d8244a.loader.js";
+      script.onerror = () => fail("Could not download the Unity loader");
+      script.onload = () => createUnityInstance(canvas, config, value => {
+        if (failed) return;
+        progress.value = value;
+        status.textContent = label + Math.round(value * 100) + "%";
+      }).then(instance => {
+        window.unityInstance = instance;
+        if (!failed) loading.hidden = true;
+        canvas.focus({ preventScroll: true });
+      }).catch(fail);
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>
